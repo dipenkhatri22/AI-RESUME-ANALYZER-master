@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Admin Login{% endblock %}
+{% block content %}
+
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-icon">🔐</div>
+    <h2 class="login-title">Admin Portal</h2>
+    <p class="login-sub">Enter your credentials to access the dashboard</p>
+
+    <div>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="admin-user" class="form-control" placeholder="Enter username" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div style="position:relative;">
+          <input type="password" id="admin-pass" class="form-control" placeholder="Enter password" autocomplete="current-password" onkeydown="if(event.key==='Enter')handleLogin()">
+          <button onclick="togglePassword()" id="toggle-pass" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;">👁</button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;padding:14px;font-size:0.95rem;justify-content:center;" onclick="handleLogin()" id="login-btn">
+        Sign In
+      </button>
+    </div>
+
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);text-align:center;">
+      <p style="font-size:0.8rem;color:var(--text-muted);">
+        <a href="{{ url_for('index') }}" style="color:var(--primary);text-decoration:none;">← Return to Home</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePassword() {
+  const input = document.getElementById('admin-pass');
+  const btn = document.getElementById('toggle-pass');
+  input.type = input.type === 'password' ? 'text' : 'password';
+  btn.textContent = input.type === 'password' ? '👁' : '🙈';
+}
+
+async function handleLogin() {
+  const u = document.getElementById('admin-user').value;
+  const p = document.getElementById('admin-pass').value;
+  const btn = document.getElementById('login-btn');
+
+  if (!u || !p) { showToast('Please fill in all fields', 'error'); return; }
+
+  btn.textContent = 'Signing in…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Login successful', 'success');
+      setTimeout(() => window.location.href = '/dashboard', 600);
+    } else {
+      showToast('Invalid credentials', 'error');
+      btn.textContent = 'Sign In';
+      btn.disabled = false;
+      document.getElementById('admin-pass').value = '';
+    }
+  } catch (err) {
+    showToast('Network error', 'error');
+    btn.textContent = 'Sign In';
+    btn.disabled = false;
+  }
+}
+</script>
+{% endblock %}

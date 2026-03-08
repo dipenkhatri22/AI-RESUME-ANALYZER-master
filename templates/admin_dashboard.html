@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+
+<div class="container" style="padding: 30px 24px;">
+
+  <!-- Dashboard Header -->
+  <div class="dash-header">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+      <div>
+        <h2 class="dash-title">Admin Dashboard</h2>
+        <p class="dash-sub">Manage and review all submitted candidate profiles</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" onclick="loadData(false)" id="btn-show-pii">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Show PII
+        </button>
+        <button class="btn btn-ghost" onclick="loadData(true)" id="btn-hide-pii">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          Hide PII
+        </button>
+        <a href="/api/data" class="btn btn-outline">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </a>
+        <a href="/" class="btn btn-danger">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Logout
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Analytics Cards -->
+  <div class="analytics-grid">
+    <div class="analytics-card">
+      <div class="card-label">Total Candidates</div>
+      <div class="card-num" id="total-count">—</div>
+      <div class="card-sub">All time submissions</div>
+    </div>
+    <div class="analytics-card" style="--primary: var(--success);">
+      <div class="card-label">Average Score</div>
+      <div class="card-num" id="avg-score" style="color:var(--primary);">—</div>
+      <div class="card-sub">Across all candidates</div>
+    </div>
+    <div class="analytics-card">
+      <div class="card-label">High Potential</div>
+      <div class="card-num" id="high-pot" style="color:var(--success);">—</div>
+      <div class="card-sub">Score above 80</div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="table-header">
+      <h3>Candidate Records</h3>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="text" id="search-box" class="form-control" style="width:220px;padding:8px 14px;font-size:0.85rem;" placeholder="🔍 Search candidates…" oninput="filterTable(this.value)">
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="dash-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Candidate</th>
+            <th>Email</th>
+            <th>Field</th>
+            <th>Score</th>
+            <th>Submitted</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="dashboard-body">
+          <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+              <div class="spinner" style="width:30px;height:30px;border-width:2px;"></div>
+              Loading candidates…
+            </div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allRows = [];
+
+document.addEventListener('DOMContentLoaded', () => loadData(false));
+
+async function loadData(privacyMode) {
+  try {
+    const url = privacyMode ? '/api/data?privacy=true' : '/api/data';
+    const res = await fetch(url);
+    const users = await res.json();
+    allRows = users;
+
+    const tbody = document.getElementById('dashboard-body');
+    tbody.innerHTML = '';
+
+    let totalScore = 0, highPot = 0;
+
+    users.forEach(u => {
+      const score = parseFloat(u[3]);
+      totalScore += score;
+      if (score > 80) highPot++;
+
+      let badgeClass = 'status-low';
+      if (score > 80) badgeClass = 'status-high';
+      else if (score > 50) badgeClass = 'status-med';
+
+      const tr = document.createElement('tr');
+      tr.dataset.name = (u[1] || '').toLowerCase();
+      tr.dataset.email = (u[2] || '').toLowerCase();
+      tr.dataset.field = (u[6] || '').toLowerCase();
+      tr.innerHTML = `
+        <td class="td-id">#${u[0]}</td>
+        <td class="td-name">${u[1]}</td>
+        <td>${u[2]}</td>
+        <td style="color:var(--text-secondary);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${u[6] ? u[6].toString().substring(0, 24) : 'N/A'}</td>
+        <td><span class="status-badge ${badgeClass}">${score.toFixed(1)}</span></td>
+        <td style="font-family:var(--font-mono);font-size:0.78rem;">${u[4] ? u[4].split(' ')[0] : '—'}</td>
+        <td>
+          <button class="btn btn-danger" style="padding:4px 12px;font-size:0.75rem;" onclick="deleteUser(${u[0]}, this)">
+            Delete
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    animateCounter(document.getElementById('total-count'), users.length);
+    animateCounter(document.getElementById('avg-score'), users.length ? parseFloat((totalScore / users.length).toFixed(1)) : 0);
+    animateCounter(document.getElementById('high-pot'), highPot);
+
+    showToast(privacyMode ? 'Privacy mode enabled' : 'Data refreshed', 'success');
+  } catch (e) {
+    console.error(e);
+    showToast('Error loading data', 'error');
+  }
+}
+
+async function deleteUser(id, btnElement) {
+  if (!confirm('Remove this candidate permanently?')) return;
+  try {
+    await fetch(`/api/candidate/${id}`, { method: 'DELETE' });
+    const row = btnElement.closest('tr');
+    row.style.transition = 'opacity 0.4s, transform 0.4s';
+    row.style.opacity = '0';
+    row.style.transform = 'translateX(20px)';
+    setTimeout(() => row.remove(), 400);
+    showToast('Candidate removed', 'success');
+  } catch (e) {
+    showToast('Failed to delete', 'error');
+  }
+}
+
+function filterTable(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('#dashboard-body tr').forEach(tr => {
+    const match = !q ||
+      (tr.dataset.name && tr.dataset.name.includes(q)) ||
+      (tr.dataset.email && tr.dataset.email.includes(q)) ||
+      (tr.dataset.field && tr.dataset.field.includes(q));
+    tr.style.display = match ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

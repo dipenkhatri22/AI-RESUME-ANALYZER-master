@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}AI Resume Analyzer{% endblock %}
+{% block content %}
+
+<!-- HERO -->
+<section class="hero-section">
+  <div class="hero-orb hero-orb-1"></div>
+  <div class="hero-orb hero-orb-2"></div>
+
+  <div class="container">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;">
+      <div>
+        <div class="hero-label">
+          <span style="width:6px;height:6px;background:var(--primary);border-radius:50%;"></span>
+          AI-Powered Screening Platform
+        </div>
+
+        <h1 class="hero-title">
+          Rank candidates with<br>
+          <span class="accent">surgical</span> precision
+        </h1>
+
+        <p class="hero-sub">
+          Upload any resume and get an instant AI-scored breakdown — skill gap analysis, semantic matching, and role-fit scoring in under 5 seconds.
+        </p>
+
+        <div class="hero-actions">
+          <a href="{{ url_for('user_view') }}" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Analyze My Resume
+          </a>
+          <a href="{{ url_for('shortlist_view') }}" class="btn btn-outline">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Batch Screen
+          </a>
+        </div>
+
+        <div class="hero-stats">
+          <div class="stat-item">
+            <div class="stat-num">98<span>%</span></div>
+            <div class="stat-label">Accuracy rate</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num">5<span>s</span></div>
+            <div class="stat-label">Avg. analysis time</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num">50<span>k+</span></div>
+            <div class="stat-label">Resumes processed</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- HERO VISUAL -->
+      <div class="hero-visual">
+        <div class="hero-card-stack">
+          <!-- Main Score Card -->
+          <div class="floating-card main-card" style="top:0;left:0;right:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <div>
+                <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">Resume Analysis</div>
+                <div style="font-size:1rem;font-weight:700;font-family:var(--font-display);margin-top:2px;">Senior Engineer • Sarah K.</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font-family:var(--font-display);font-size:2.5rem;font-weight:900;color:var(--success);line-height:1;">87</div>
+                <div style="font-size:0.65rem;color:var(--text-muted);">/ 100</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+              <span class="skill-tag" style="font-size:0.7rem;padding:3px 10px;">React</span>
+              <span class="skill-tag" style="font-size:0.7rem;padding:3px 10px;">Python</span>
+              <span class="skill-tag" style="font-size:0.7rem;padding:3px 10px;">AWS</span>
+              <span class="skill-tag" style="font-size:0.7rem;padding:3px 10px;">Docker</span>
+              <span class="skill-tag recommend" style="font-size:0.7rem;padding:3px 10px;">+Kubernetes</span>
+            </div>
+            <!-- Mini bars -->
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;gap:10px;font-size:0.72rem;">
+                <span style="color:var(--text-muted);width:70px;">Skills</span>
+                <div style="flex:1;height:3px;background:var(--surface2);border-radius:2px;">
+                  <div style="width:90%;height:100%;background:var(--primary);border-radius:2px;"></div>
+                </div>
+                <span style="color:var(--text);font-family:var(--font-mono);">90</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;font-size:0.72rem;">
+                <span style="color:var(--text-muted);width:70px;">Experience</span>
+                <div style="flex:1;height:3px;background:var(--surface2);border-radius:2px;">
+                  <div style="width:80%;height:100%;background:var(--success);border-radius:2px;"></div>
+                </div>
+                <span style="color:var(--text);font-family:var(--font-mono);">80</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;font-size:0.72rem;">
+                <span style="color:var(--text-muted);width:70px;">Education</span>
+                <div style="flex:1;height:3px;background:var(--surface2);border-radius:2px;">
+                  <div style="width:85%;height:100%;background:var(--accent2);border-radius:2px;"></div>
+                </div>
+                <span style="color:var(--text);font-family:var(--font-mono);">85</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating badge cards -->
+          <div class="floating-card skill-badge-card" style="top:55%;left:-30px;box-shadow:var(--shadow);">
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">Role Match</div>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--success);">High ✓</div>
+            <div style="font-size:0.65rem;color:var(--text-muted);">Full Stack Engineer</div>
+          </div>
+
+          <div class="floating-card score-card" style="bottom:10px;right:-10px;box-shadow:var(--shadow);">
+            <div style="font-size:0.7rem;color:var(--text-muted);margin-bottom:6px;">Recommended</div>
+            <div class="skill-tag recommend" style="font-size:0.7rem;padding:4px 10px;display:inline-block;">+GraphQL</div>
+            <div class="skill-tag recommend" style="font-size:0.7rem;padding:4px 10px;display:inline-block;margin-top:6px;">+Terraform</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features-section">
+  <div class="container">
+    <div style="max-width:600px;">
+      <div class="section-label">Why ResumeAI</div>
+      <h2 class="section-title">Not just keyword matching.<br><em>Deep intelligence.</em></h2>
+      <p class="section-sub">Our engine understands context, seniority, and semantic equivalence — the way a human recruiter does, at machine speed.</p>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🧠</div>
+        <h3>Semantic NLP Analysis</h3>
+        <p>Understands "Led a team of 8" and "Managed engineers" as equivalent. Context-aware scoring, not keyword counting.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Sub-5 Second Results</h3>
+        <p>Full skill extraction, gap analysis, scoring breakdown, and course recommendations — all delivered instantly.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>Privacy-First by Design</h3>
+        <p>GDPR compliant. Admin dashboard supports one-click PII masking. Your candidates' data stays protected.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Detailed Score Breakdown</h3>
+        <p>See exactly how scores are computed — skills, experience depth, education, and role alignment — all broken down clearly.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📁</div>
+        <h3>Batch Processing</h3>
+        <p>Upload dozens of resumes against a job description and get a ranked shortlist in seconds. Built for recruiters at scale.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">✨</div>
+        <h3>AI Resume Builder</h3>
+        <p>Generate, optimize, and export polished resumes using AI — with live preview and multiple professional templates.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA STRIP -->
+<section style="padding: 60px 0;">
+  <div class="container">
+    <div style="background: linear-gradient(135deg, var(--surface), var(--surface2)); border: 1px solid var(--border); border-radius: 24px; padding: 60px; text-align: center; position: relative; overflow: hidden;">
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:400px;height:400px;background:radial-gradient(circle,var(--primary-dim),transparent 70%);border-radius:50%;pointer-events:none;"></div>
+      <div style="position:relative;">
+        <h2 style="font-family:var(--font-display);font-size:2.5rem;letter-spacing:-0.03em;margin-bottom:16px;">Ready to screen smarter?</h2>
+        <p style="color:var(--text-secondary);font-size:1rem;margin-bottom:32px;">Upload your first resume free. No account required.</p>
+        <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+          <a href="{{ url_for('user_view') }}" class="btn btn-primary" style="padding:14px 32px;font-size:1rem;">
+            Start Analyzing — Free
+          </a>
+          <a href="{{ url_for('shortlist_view') }}" class="btn btn-outline" style="padding:14px 32px;font-size:1rem;">
+            Recruiter Mode
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

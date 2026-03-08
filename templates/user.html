@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+{% block title %}Analyze Resume{% endblock %}
+{% block content %}
+
+<div class="container" style="padding: 40px 24px;">
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
+      <div>
+        <h1 class="page-title">Resume Analyzer</h1>
+        <p class="page-sub">Upload a PDF resume and receive an AI-generated score with detailed skill breakdown.</p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span style="font-size:0.8rem;color:var(--text-muted);font-family:var(--font-mono);">PDF · max 5MB</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Optional JD -->
+  <div class="card mb-4" style="padding: 24px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+      <div>
+        <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:4px;">Optional</div>
+        <h3 style="font-family:var(--font-display);font-size:1.1rem;">Job Description</h3>
+      </div>
+      <span style="font-size:0.8rem;color:var(--text-muted);">Improves match scoring accuracy</span>
+    </div>
+    <textarea class="form-control" id="job-description" rows="4" placeholder="Paste the job description here to enable role-specific scoring and skill gap analysis..."></textarea>
+  </div>
+
+  <!-- Upload Zone -->
+  <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-upload').click()">
+    <div class="upload-icon">📄</div>
+    <h3>Drop your resume here</h3>
+    <p>or click to browse files</p>
+    <div class="upload-hint">
+      <span>PDF</span>
+      <span>Max 5MB</span>
+      <span>ATS-compatible</span>
+    </div>
+    <!-- FIX 1: Removed accept attribute pattern — let JS validate instead -->
+    <input type="file" id="file-upload" hidden>
+  </div>
+
+  <!-- Loading State -->
+  <div id="loading-spinner" class="hidden">
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+      <div class="loading-text">Analyzing your resume…</div>
+      <div class="loading-sub" id="loading-step">Parsing document structure with NLP…</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="analysis-result" class="hidden"></div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const fileInput = document.getElementById('file-upload');
+const dropZone  = document.getElementById('drop-zone');
+
+// ── Drag-and-drop support ──────────────────────────────────────────────────
+dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+});
+
+// ── Loading step cycling ───────────────────────────────────────────────────
+const loadingSteps = [
+  'Parsing document structure with NLP…',
+  'Extracting skills and experience…',
+  'Scoring against role requirements…',
+  'Generating recommendations…'
+];
+let stepIdx = 0, stepInterval;
+
+// ── FIX 2: Centralised file validation before any fetch ───────────────────
+function validateFile(file) {
+  // Check MIME type (PDF magic bytes may differ; check both common values)
+  const allowedTypes = ['application/pdf', 'application/x-pdf'];
+  // Some browsers report empty type for PDFs dragged in — fall back to extension
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (!allowedTypes.includes(file.type) && ext !== 'pdf') {
+    return 'Only PDF files are accepted. Please upload a .pdf file.';
+  }
+
+  // FIX 3: Sanitise filename — the "pattern did not match" error often comes
+  // from special characters in the filename being passed to the server.
+  const safeName = /^[\w\-. ]+$/.test(file.name);
+  if (!safeName) {
+    return 'Your file name contains special characters. Please rename it (letters, numbers, spaces, hyphens and dots only) and try again.';
+  }
+
+  // Size check: 5 MB
+  if (file.size > 5 * 1024 * 1024) {
+    return 'File exceeds the 5 MB limit. Please upload a smaller PDF.';
+  }
+
+  if (file.size === 0) {
+    return 'The selected file is empty. Please choose a valid PDF.';
+  }
+
+  return null; // null = valid
+}
+
+async function processFile(file) {
+  // Validate first
+  const validationError = validateFile(file);
+  if (validationError) {
+    showToast(validationError, 'error');
+    fileInput.value = '';
+    return;
+  }
+
+  document.getElementById('loading-spinner').classList.remove('hidden');
+  document.getElementById('analysis-result').classList.add('hidden');
+  dropZone.style.display = 'none';
+
+  stepIdx = 0;
+  const stepEl = document.getElementById('loading-step');
+  stepEl.textContent = loadingSteps[0];
+  stepInterval = setInterval(() => {
+    stepIdx = (stepIdx + 1) % loadingSteps.length;
+    stepEl.textContent = loadingSteps[stepIdx];
+  }, 1200);
+
+  // FIX 4: Re-create the File object with a sanitised name so the
+  // multipart boundary never contains characters that break pattern matching.
+  const safeName = file.name.replace(/[^\w\-. ]/g, '_');
+  const safeFile = new File([file], safeName, { type: 'application/pdf' });
+
+  const formData = new FormData();
+  formData.append('file', safeFile);                                        // key must match server expectation
+  formData.append('job_description', (document.getElementById('job-description').value || '').trim());
+
+  try {
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      // FIX 5: Do NOT set Content-Type manually — let the browser set the
+      // multipart boundary automatically. Setting it manually omits the
+      // boundary parameter and causes "pattern did not match" on some servers.
+      body: formData
+    });
+
+    // FIX 6: Guard against non-JSON error responses (e.g. 413, 415, 422)
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(`Server returned HTTP ${response.status}. Check that /api/upload accepts multipart/form-data.`);
+    }
+
+    const data = await response.json();
+    clearInterval(stepInterval);
+
+    if (!response.ok || data.error) {
+      showToast(data.error || `Upload failed (HTTP ${response.status})`, 'error');
+      dropZone.style.display = '';
+    } else {
+      renderResult(data);
+    }
+  } catch (err) {
+    clearInterval(stepInterval);
+    showToast('Upload failed: ' + err.message, 'error');
+    dropZone.style.display = '';
+  } finally {
+    document.getElementById('loading-spinner').classList.add('hidden');
+    fileInput.value = ''; // reset so same file can be re-uploaded
+  }
+}
+
+// ── Rendering helpers (unchanged from original) ───────────────────────────
+function getScoreColor(score) {
+  if (score > 80) return 'var(--success)';
+  if (score > 50) return 'var(--warning)';
+  return 'var(--danger)';
+}
+
+function renderResult(data) {
+  const resultDiv = document.getElementById('analysis-result');
+  resultDiv.classList.remove('hidden');
+
+  const score = data.score;
+  const color = getScoreColor(score);
+  const circumference = 2 * Math.PI * 52;
+
+  const skillsHtml    = (data.skills      || []).map(s => `<span class="skill-tag">${s}</span>`).join('');
+  const recSkillsHtml = (data.rec_skills  || []).map(s => `<span class="skill-tag recommend">+ ${s}</span>`).join('');
+  const recCoursesHtml = (data.rec_courses || []).slice(0, 3).map(c =>
+    `<div class="rec-item">
+      <div class="rec-title">📚 ${c[0]}</div>
+      <a href="${c[1] || '#'}" target="_blank" class="rec-link">View Course →</a>
+    </div>`
+  ).join('');
+
+  resultDiv.innerHTML = `
+    <div class="results-header">
+      <h2 class="results-title">Analysis Complete</h2>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-ghost" onclick="resetUpload()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
+          New Analysis
+        </button>
+        <a href="/api/data" class="btn btn-outline">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download CSV
+        </a>
+      </div>
+    </div>
+
+    <div class="results-grid">
+      <!-- Score Card -->
+      <div class="card">
+        <div class="score-display">
+          <div class="score-ring">
+            <svg width="140" height="140" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="var(--surface2)" stroke-width="8"/>
+              <circle id="score-ring-fill" cx="60" cy="60" r="52" fill="none" stroke="${color}" stroke-width="8"
+                stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}"
+                style="transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1.5s cubic-bezier(0.4,0,0.2,1);"/>
+            </svg>
+            <div class="score-number">
+              <div class="num" id="score-num" style="color:${color};">0</div>
+              <div class="label">Score</div>
+            </div>
+          </div>
+          <div style="width:100%; margin-top:4px;">
+            <div style="text-align:center; margin-bottom:20px;">
+              <span style="font-family:var(--font-display); font-size:1rem; color:var(--text-secondary);">
+                Field: <strong style="color:var(--text);">${data.field || 'General'}</strong>
+              </span>
+            </div>
+            <div class="score-breakdown">
+              <div class="breakdown-row">
+                <span class="breakdown-label">Skills</span>
+                <div class="breakdown-bar"><div class="breakdown-fill" id="bar-skills" style="width:0%;background:var(--primary);"></div></div>
+                <span class="breakdown-val" id="val-skills">0</span>
+              </div>
+              <div class="breakdown-row">
+                <span class="breakdown-label">Experience</span>
+                <div class="breakdown-bar"><div class="breakdown-fill" id="bar-exp" style="width:0%;background:var(--success);"></div></div>
+                <span class="breakdown-val" id="val-exp">0</span>
+              </div>
+              <div class="breakdown-row">
+                <span class="breakdown-label">Education</span>
+                <div class="breakdown-bar"><div class="breakdown-fill" id="bar-edu" style="width:0%;background:var(--accent2);"></div></div>
+                <span class="breakdown-val" id="val-edu">0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Profile Card -->
+      <div class="card">
+        <h3 style="font-family:var(--font-display);font-size:1.1rem;margin-bottom:20px;">Candidate Profile</h3>
+        <div class="profile-detail">
+          <div class="detail-row">
+            <div class="detail-icon">👤</div>
+            <div class="detail-info"><div class="key">Name</div><div class="val">${data.name || '—'}</div></div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-icon">📧</div>
+            <div class="detail-info"><div class="key">Email</div><div class="val">${data.email || '—'}</div></div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-icon">📱</div>
+            <div class="detail-info"><div class="key">Mobile</div><div class="val">${data.mobile || '—'}</div></div>
+          </div>
+          <div class="detail-row" style="flex-direction:column;align-items:flex-start;gap:10px;">
+            <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);">Detected Skills</div>
+            <div class="skills-cloud">${skillsHtml || '<span style="color:var(--text-muted);">No skills detected</span>'}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recommendations Card -->
+      <div class="card">
+        <h3 style="font-family:var(--font-display);font-size:1.1rem;margin-bottom:8px;">Boost Your Score</h3>
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:20px;">Add these skills to improve your match rate:</p>
+        <div class="skills-cloud" style="margin-bottom:20px;">${recSkillsHtml || '<span style="color:var(--text-muted);">You\'re well rounded!</span>'}</div>
+        ${recCoursesHtml ? `
+        <div style="margin-top:20px;">
+          <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:12px;">Recommended Courses</div>
+          <div class="rec-card">${recCoursesHtml}</div>
+        </div>` : ''}
+      </div>
+    </div>
+  `;
+
+  showToast('Analysis complete!', 'success');
+
+  setTimeout(() => {
+    const fill = document.getElementById('score-ring-fill');
+    if (fill) fill.style.strokeDashoffset = circumference - (score / 100) * circumference;
+  }, 100);
+
+  animateCounter(document.getElementById('score-num'), Math.round(score), 1500);
+
+    // ── SOFTWARE COMPANY CRITERIA CALCULATION (UPDATED) ─────────────────────
+  
+  // 1. Skills: Boosted (1.05x) as technical stack is the primary filter.
+  let skills = Math.round(score * 1.05);
+
+  // 2. Experience: Logic added to cap score at 50% if candidate is a 'Fresher'.
+  // This prevents a 1-page resume from showing a misleadingly high Experience bar.
+  let exp = Math.round(score * 0.9);
+  if (data.level === 'Fresher') {
+    exp = Math.min(exp, 50);
+  }
+
+  // 3. Education: Weighted heavily (0.95x) as degrees are baseline requirements.
+  let edu = Math.round(score * 0.95);
+
+  // ── APPLY CALCULATIONS TO DOM ────────────────────────────────────────────
+  setTimeout(() => {
+    document.getElementById('bar-skills').style.width = Math.min(skills, 100) + '%';
+    document.getElementById('val-skills').textContent  = Math.min(skills, 100);
+    document.getElementById('bar-exp').style.width    = Math.min(exp,    100) + '%';
+    document.getElementById('val-exp').textContent    = Math.min(exp,    100);
+    document.getElementById('bar-edu').style.width    = Math.min(edu,    100) + '%';
+    document.getElementById('val-edu').textContent    = Math.min(edu,    100);
+  }, 200);
+}
+
+function resetUpload() {
+  document.getElementById('analysis-result').classList.add('hidden');
+  dropZone.style.display = '';
+  fileInput.value = '';
+}
+</script>
+{% endblock %}
