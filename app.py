@@ -393,20 +393,30 @@ def upload_file():
         )
         score = score_data['total_score']
 
-        # ── 8. Database insert — BUG 2 FIX: own try/except block ──────
-        #       DB failure is now NON-FATAL: logs warning, returns result
+                # ── 8. Database insert — UPDATED TO SAVE BREAKDOWN ──────
         if connection:
             try:
                 ts        = time.time()
                 timestamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H:%M:%S')
+                
+                # Extract breakdown values safely
+                s_skill = str(score_data['breakdown'].get('skills', 0))
+                s_edu   = str(score_data['breakdown'].get('education', 0))
+                s_exp   = str(score_data['breakdown'].get('experience', 0))
+                s_sem   = str(score_data['breakdown'].get('semantic_fit', 0))
+
                 insert_sql = """INSERT INTO user_data
                     (Name, Email_ID, resume_score, Timestamp, Page_no,
-                     Predicted_Field, User_level, Recommended_skills, Recommended_courses)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+                     Predicted_Field, User_level, Recommended_skills, Recommended_courses,
+                     Skills_Score, Edu_Score, Exp_Score, Semantic_Score)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"""
+                    
                 cursor.execute(insert_sql, (
                     name, email, str(score), timestamp, str(pages),
-                    reco_field, cand_level, str(recommended_skills), str(rec_courses)
+                    reco_field, cand_level, str(recommended_skills), str(rec_courses),
+                    s_skill, s_edu, s_exp, s_sem
                 ))
+                
                 user_id = cursor.lastrowid
                 if skills:
                     cursor.executemany(

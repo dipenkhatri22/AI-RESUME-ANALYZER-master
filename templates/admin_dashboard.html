@@ -51,7 +51,28 @@
     </div>
   </div>
 
-  <!-- Table -->
+  <!-- High Potential Candidates List (NEW) -->
+  <div class="card mb-4" id="high-pot-section" style="display:none;">
+    <div class="table-header" style="border:none; padding:0; margin-bottom:20px;">
+      <h3>🏆 High Potential Candidates (Score > 80)</h3>
+      <p style="color:var(--text-secondary);font-size:0.85rem;">Top talent identified automatically</p>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="dash-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Score</th>
+            <th>Field</th>
+          </tr>
+        </thead>
+        <tbody id="high-pot-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Main Table -->
   <div class="table-card">
     <div class="table-header">
       <h3>Candidate Records</h3>
@@ -105,11 +126,17 @@ async function loadData(privacyMode) {
     tbody.innerHTML = '';
 
     let totalScore = 0, highPot = 0;
+    const highPotList = [];
 
     users.forEach(u => {
       const score = parseFloat(u[3]);
       totalScore += score;
-      if (score > 80) highPot++;
+      
+      // Collect high potential candidates (Score > 80)
+      if (score > 80) {
+        highPot++;
+        highPotList.push(u);
+      }
 
       let badgeClass = 'status-low';
       if (score > 80) badgeClass = 'status-high';
@@ -139,10 +166,43 @@ async function loadData(privacyMode) {
     animateCounter(document.getElementById('avg-score'), users.length ? parseFloat((totalScore / users.length).toFixed(1)) : 0);
     animateCounter(document.getElementById('high-pot'), highPot);
 
+    // Populate High Potential Section
+    renderHighPotential(highPotList, privacyMode);
+
     showToast(privacyMode ? 'Privacy mode enabled' : 'Data refreshed', 'success');
   } catch (e) {
     console.error(e);
     showToast('Error loading data', 'error');
+  }
+}
+
+function renderHighPotential(candidates, privacyMode) {
+  const section = document.getElementById('high-pot-section');
+  const tbody = document.getElementById('high-pot-body');
+  
+  if (candidates.length > 0) {
+    section.style.display = 'block';
+    tbody.innerHTML = '';
+    
+    // Sort descending by score
+    candidates.sort((a, b) => parseFloat(b[3]) - parseFloat(a[3]));
+    
+    candidates.forEach(u => {
+      const tr = document.createElement('tr');
+      // Apply privacy masking if active
+      const name = u[1]; 
+      const email = u[2];
+      
+      tr.innerHTML = `
+        <td class="td-name">${name}</td>
+        <td>${email}</td>
+        <td><span class="status-badge status-high">${parseFloat(u[3]).toFixed(1)}</span></td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;">${u[6] || 'N/A'}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } else {
+    section.style.display = 'none';
   }
 }
 
